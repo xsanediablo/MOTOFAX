@@ -1,0 +1,2 @@
+[functions.provider-webhook]
+verify_jwt = false
