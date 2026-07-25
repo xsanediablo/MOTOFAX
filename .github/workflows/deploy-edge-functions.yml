@@ -1,30 +1,59 @@
-- name: Verify token exists
-  run: |
-    if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
-      echo "SUPABASE_ACCESS_TOKEN is empty"
-      exit 1
-    fi
-    echo "Token is present"
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
-      - run: supabase db push
-      - name: Validate token with Supabase API
-  run: |
-    curl -sS -o /tmp/out.json -w "%{http_code}" \
-      -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-      https://api.supabase.com/v1/projects > /tmp/status.txt
-    STATUS=$(cat /tmp/status.txt)
-    echo "HTTP $STATUS"
-    cat /tmp/out.json
-    test "$STATUS" = "200"
+
+      - name: Validate Supabase secrets
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "Missing required secret: SUPABASE_ACCESS_TOKEN"
+            exit 1
+          fi
+          if [ -z "$SUPABASE_PROJECT_ID" ]; then
+            echo "Missing required secret: SUPABASE_PROJECT_ID"
+            exit 1
+          fi
+
+      - name: Inspect Supabase token format
+        run: |
+          if [[ "$SUPABASE_ACCESS_TOKEN" != sbp_* ]]; then
+            echo "Supabase access token does not start with sbp_"
+            exit 1
+          fi
+          if [[ "$SUPABASE_ACCESS_TOKEN" =~ [[:space:]] ]]; then
+            echo "Supabase access token contains whitespace. Paste the raw token only."
+            exit 1
+          fi
+          echo "Supabase access token prefix: ${SUPABASE_ACCESS_TOKEN:0:4}"
+          echo "Supabase access token length: ${#SUPABASE_ACCESS_TOKEN}"
+          if [ -z "$SUPABASE_PROJECT_ID" ]; then
+            echo "Missing project ID"
+            exit 1
+          fi
+          echo "Supabase project ID length: ${#SUPABASE_PROJECT_ID}"
+
+      - name: Deploy provider webhook
+        run: supabase functions deploy provider-webhook --project-ref "$SUPABASE_PROJECT_ID"
