@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 
 export default function Header() {
   return (
@@ -29,6 +28,9 @@ export default function Header() {
             </Link>
             <Link href="#pricing" className="text-gray-400 hover:text-white transition">
               Pricing
+            </Link>
+            <Link href="/amsoil" className="text-gray-400 hover:text-white transition">
+              Buy AMSOIL
             </Link>
             <Link href="#about" className="text-gray-400 hover:text-white transition">
               About
